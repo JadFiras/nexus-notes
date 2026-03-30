@@ -86,15 +86,6 @@ nexus/
 
 ---
 
-## AI Feature
-
-The AI bar calls the Anthropic API directly from the browser.
-To enable it, either:
-1. Add a proxy route in app.py that forwards to Anthropic with your API key
-2. Or add your API key to the fetch call in index.html (local dev only)
-
----
-
 ## Data
 
 All notes stored in SQLite at `~/NexusNotes/nexus.db`.
