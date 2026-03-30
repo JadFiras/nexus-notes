@@ -359,7 +359,7 @@
       clearTimeout(this.state.longPressTimer);
       this.state.longPressTimer=setTimeout(()=>{
         this.openFromEvent({target:event.target,clientX:touch.clientX,clientY:touch.clientY,pointerType:'touch',preventDefault(){}});
-      },520);
+      },350);
     },
     cancelLongPress(){
       clearTimeout(this.state.longPressTimer);
@@ -401,15 +401,34 @@
 
   registerContextMenu('note-item',{priority:120,matches:ctx=>ctx.kinds.has('note-item'),getActions:ctx=>[
     makeAction('Open Note',{icon:'note',hint:'Enter',run:()=>openNote(ctx.noteId)}),
+    makeAction('Open in New Tab',{icon:'note',run:()=>{openNote(ctx.noteId);}}),
+    'sep',
     makeAction('Rename Note',{icon:'edit',hint:'F2',run:()=>renameNotePrompt(ctx.noteId)}),
     makeAction('Duplicate Note',{icon:'copy',run:()=>duplicateNote(ctx.noteId)}),
     makeAction(bookmarkedNoteIds.has(ctx.noteId)?'Remove Bookmark':'Bookmark Note',{icon:'bookmark',run:()=>toggleBookmarkForNote(ctx.noteId)}),
+    makeAction('Move to Folder',{icon:'folder2',children:getFolderMoveActions(ctx.noteId)}),
+    'sep',
+    makeAction('Export',{icon:'download',children:[
+      makeAction('Export as Markdown',{icon:'document',run:async()=>{if(currentNote?.id!==ctx.noteId)await openNote(ctx.noteId);exportNote('markdown');}}),
+      makeAction('Export as HTML',{icon:'code',run:async()=>{if(currentNote?.id!==ctx.noteId)await openNote(ctx.noteId);exportNote('html');}}),
+      makeAction('Export as Text',{icon:'document',run:async()=>{if(currentNote?.id!==ctx.noteId)await openNote(ctx.noteId);exportNote('txt');}})
+    ]}),
     'sep',
     makeAction('Delete Note',{icon:'trash',hint:'Del',run:async()=>{ if(currentNote?.id!==ctx.noteId)await openNote(ctx.noteId); await deleteCurrentNote(); }})
   ]});
+  
+  function getFolderMoveActions(noteId){
+    return (typeof folderCache!=='undefined'?folderCache:[]).slice(0,10).map(f=>
+      makeAction(f.folder,{icon:'folder2',run:()=>moveNoteToFolder(noteId,f.folder)})
+    );
+  }
   registerContextMenu('folder-item',{priority:118,matches:ctx=>ctx.kinds.has('folder-item'),getActions:ctx=>[
     makeAction('Open Folder',{icon:'folder2',run:()=>filterByFolder(ctx.folderName)}),
+    makeAction('New Note in Folder',{icon:'note',run:()=>createNoteInFolder(ctx.folderName)}),
+    'sep',
     makeAction('Rename Folder',{icon:'edit',run:()=>renameFolderPrompt(ctx.folderName)}),
+    makeAction('Create Subfolder',{icon:'folder2',run:()=>createFolderPrompt(ctx.folderName+'/')}),
+    'sep',
     makeAction('Delete Folder',{icon:'trash',run:()=>deleteFolderPrompt(ctx.folderName)})
   ]});
   registerContextMenu('drawing-block',{priority:112,matches:ctx=>ctx.kinds.has('drawing-block'),getActions:ctx=>[
@@ -493,17 +512,45 @@
       makeAction('Image',{icon:'image',run:()=>insertImage()}),
       makeAction('Checklist',{icon:'checklist',run:()=>insertChecklist()}),
       makeAction('Code Block',{icon:'code',run:()=>insertCodeBlock()}),
+      makeAction('Blockquote',{icon:'quote',run:()=>insertBlockquote()}),
+      makeAction('Callout',{icon:'quote',run:()=>insertCallout?.()}),
       makeAction('Divider',{icon:'quote',run:()=>insertDivider()})
     ]}),
-    makeAction('Paste',{icon:'paste',run:()=>window.contextActions.pasteSelection()}),
+    makeAction('Format',{icon:'edit',children:[
+      makeAction('Heading 1',{icon:'edit',run:()=>fmt('formatBlock','H1')}),
+      makeAction('Heading 2',{icon:'edit',run:()=>fmt('formatBlock','H2')}),
+      makeAction('Heading 3',{icon:'edit',run:()=>fmt('formatBlock','H3')}),
+      makeAction('Bullet List',{icon:'checklist',run:()=>fmt('insertUnorderedList')}),
+      makeAction('Numbered List',{icon:'checklist',run:()=>fmt('insertOrderedList')})
+    ]}),
+    'sep',
+    makeAction('Paste',{icon:'paste',hint:'Ctrl+V',run:()=>window.contextActions.pasteSelection()}),
+    makeAction('Select All',{icon:'edit',hint:'Ctrl+A',run:()=>document.execCommand('selectAll')}),
+    'sep',
     makeAction('Quick Capture',{icon:'note',run:()=>openQuickCapture()}),
-    makeAction('Save as Template',{icon:'bookmark',run:()=>saveAsTemplate()})
+    makeAction('Save as Template',{icon:'bookmark',run:()=>saveAsTemplate()}),
+    makeAction('View Properties',{icon:'settings',run:()=>toggleRightPanel?.('properties')})
   ]});
   registerContextMenu('app-background',{priority:80,matches:ctx=>ctx.kinds.has('app-background'),getActions:()=>[
-    makeAction('New Note',{icon:'note',run:()=>createNote()}),
+    makeAction('New Note',{icon:'note',hint:'Ctrl+N',run:()=>createNote()}),
     makeAction('New Folder',{icon:'folder2',run:()=>createFolderPrompt()}),
-    makeAction('Quick Capture',{icon:'note',run:()=>openQuickCapture()}),
-    makeAction('Command Palette',{icon:'search',run:()=>openCmdPalette()}),
+    makeAction('Quick Capture',{icon:'note',hint:'Ctrl+Shift+N',run:()=>openQuickCapture()}),
+    'sep',
+    makeAction('Open',{icon:'sparkles',children:[
+      makeAction('Daily Workspace',{icon:'calendar',run:()=>openDailyWorkspace()}),
+      makeAction('Graph View',{icon:'link2',run:()=>openGraph()}),
+      makeAction('Mind Map',{icon:'sparkles',run:()=>openMindmapList()}),
+      makeAction('Painter',{icon:'edit',run:()=>openPainter()}),
+      makeAction('Templates',{icon:'document',run:()=>openTemplatesModal()}),
+      makeAction('AI Assistant',{icon:'sparkles',run:()=>toggleDuckSidebar()})
+    ]}),
+    makeAction('Import/Export',{icon:'download',children:[
+      makeAction('Import Markdown',{icon:'upload',run:()=>document.getElementById('import-md-input').click()}),
+      makeAction('Import JSON Backup',{icon:'upload',run:()=>document.getElementById('import-json-input').click()}),
+      makeAction('Export All Notes',{icon:'download',run:()=>exportAllNotes()})
+    ]}),
+    'sep',
+    makeAction('Command Palette',{icon:'search',hint:'Ctrl+K',run:()=>openCmdPalette()}),
     makeAction('Settings',{icon:'settings',run:()=>openSettings()})
   ]});
   registerContextAction({
